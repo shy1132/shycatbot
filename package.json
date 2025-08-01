@@ -2,7 +2,7 @@
   "name": "shycatbot",
   "version": "2.4.0",
   "description": "",
-  "main": "index.js",
+  "main": "shycatbot.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
