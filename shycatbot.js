@@ -9,7 +9,7 @@ const config = require('./config.json')
 
 //code
 let platforms = {
-    twitter: require('./services/twitter-user.js'),
+    twitter: require('./services/twitter.js'),
     bluesky: require('./services/bluesky.js'),
     threads: require('./services/threads.js'),
     instagram: require('./services/instagram.js'),
