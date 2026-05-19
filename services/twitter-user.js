@@ -52,10 +52,7 @@ async function init() {
 
     if (data.startsWith('{') && res.ok) {
         let json = JSON.parse(data)
-        auth = json;
-
         console.log(`twitter: logged in as @${json.screen_name}`)
-
         return true;
     } else {
         console.log('twitter: auth is invalid')
@@ -268,7 +265,7 @@ async function post(fileName, filePath, mimeType) {
         })
 
         let postData = await postRes.json()
-        if (!postData?.data?.create_tweet?.tweet_results?.result?.rest_id) throw `post:${JSON.stringify(postData)}`
+        if (!postData?.data?.create_tweet?.tweet_results?.result?.rest_id) throw `post:${JSON.stringify(postData)}`;
 
         return true;
     } catch (err) {
