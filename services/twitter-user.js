@@ -155,7 +155,6 @@ async function post(fileName, filePath, mimeType) {
             let finalizeRes = await fetch(finalizeUrl.href, {
                 headers: {
                     ...baseHeaders,
-                    ...form.getHeaders(),
                     'x-client-transaction-id': await solver.generateTransactionId('POST', '/1.1/media/upload.json')
                 },
                 method: 'POST'
@@ -176,7 +175,6 @@ async function post(fileName, filePath, mimeType) {
                             let statusRes = await fetch(statusUrl.href, {
                                 headers: {
                                     ...baseHeaders,
-                                    ...form.getHeaders(),
                                     'x-client-transaction-id': await solver.generateTransactionId('GET', '/1.1/media/upload.json')
                                 }
                             })
