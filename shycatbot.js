@@ -22,7 +22,7 @@ let platforms = {
 
 if (config.twitter.userAuth) platforms.twitter = require('./services/twitter-user.js')
 
-let platformKeys = Object.keys(platforms);
+let platformKeys = Object.keys(platforms)
 platformKeys = platformKeys.reverse()
 platformKeys = platformKeys.sort((a, b) => {
     let indexA = config.priorityList.indexOf(a)
@@ -43,7 +43,7 @@ platformKeys = platformKeys.sort((a, b) => {
     return indexA - indexB;
 })
 
-let usedPlatforms = [];
+let usedPlatforms = []
 
 function logSegment() {
     return console.log('-'.repeat(64));
@@ -65,26 +65,6 @@ async function initialize() {
         config.mimeTypes = allMimeTypes;
     }
 
-    for (let platform of platformKeys) {
-        if (config[platform].use) {
-            let response;
-            try {
-                response = await platforms[platform].init()
-            } catch {
-                console.log(`uncaught error occurred while initializing ${platform}, disabling`)
-                response = false;
-            }
-
-            if (response === false) {
-                config[platform].use = false;
-            } else {
-                usedPlatforms.push(platform)
-            }
-        }
-    }
-
-    if (usedPlatforms.length < 1) return console.log('you have no platforms enabled or they all failed');
-
     const ORIGINAL_CIPHERS = tls.DEFAULT_CIPHERS;
     function randomizeCiphers() {
         do {
@@ -105,6 +85,26 @@ async function initialize() {
     randomizeCiphers()
     setInterval(randomizeCiphers, 1800000)
 
+    for (let platform of platformKeys) {
+        if (config[platform].use) {
+            let response;
+            try {
+                response = await platforms[platform].init()
+            } catch {
+                console.log(`uncaught error occurred while initializing ${platform}, disabling`)
+                response = false;
+            }
+
+            if (response === false) {
+                config[platform].use = false;
+            } else {
+                usedPlatforms.push(platform)
+            }
+        }
+    }
+
+    if (usedPlatforms.length < 1) return console.log('you have no platforms enabled or they all failed');
+
     logSegment()
 
     postRandomFile()
@@ -112,7 +112,7 @@ async function initialize() {
 }
 
 async function postRandomFile() {
-    let file = await getRandomFile(config.mimeTypes);
+    let file = await getRandomFile(config.mimeTypes)
     if (file.error) return console.log(`error ${file.error}, waiting until next interval`);
 
     console.log(`posting ${file.fileName}`)
@@ -121,7 +121,7 @@ async function postRandomFile() {
 
     for (let platform of platformKeys) { //a bit hard to read but its dynamic so i wont really ever have to change this
         let platformConfig = config[platform]
-        if (platformConfig.use) platformConfig.use = platforms[platform].isEnabled();
+        if (platformConfig.use) platformConfig.use = platforms[platform].isEnabled()
         if (!platformConfig.use) continue;
 
         let isAboveSizeLimit = false;
@@ -137,7 +137,7 @@ async function postRandomFile() {
         if (((platformConfig.mimeTypes && !platformConfig.mimeTypes.includes(file.mimeType)) || isAboveSizeLimit) && !config.syncPosts) {
             console.log(`${platform}: ${file.fileName} (${file.mimeType}, ${file.size} bytes) unsuitable, picking different file for ${platform}`)
 
-            let differentFile = await getRandomFile(platformConfig.mimeTypes, platformConfig.sizeLimit);
+            let differentFile = await getRandomFile(platformConfig.mimeTypes, platformConfig.sizeLimit)
             if (file.error && file.error == 'no_files') {
                 console.log(`${platform}: no files match the platform's mimetypes, disabling this platform`)
                 config[platform].use = false;
