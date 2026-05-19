@@ -1,42 +1,52 @@
 //requires
-const fs = require('fs').promises
+const fs = require('fs').promises;
 const crypto = require('crypto')
 const FormData = require('form-data')
-const oauthSign = require('oauth-sign')
+const { ClientTransaction, handleXMigration } = require('x-client-transaction-id')
 const config = require('../config.json')
 
 //code
 if (!config.twitter.use) return;
-if (config.twitter.use && (!config.twitter.password || !config.twitter.username)) return console.log('missing twitter user/pw');
+if (config.twitter.use && (!config.twitter.csrfToken || !config.twitter.authToken)) return console.log('missing twitter authToken and csrfToken');
 
-let consumerKey = 'IQKbtAYlXLripLGPWd0HUA'
-let consumerSecret = 'GgDYlkSvaPxGxC4X8liwpUoqKwwr3lCADbz8A7ADU'
-let bearerToken = `Bearer AAAAAAAAAAAAAAAAAAAAAAj4AQAAAAAAPraK64zCZ9CSzdLesbE7LB%2Bw4uE%3DVJQREvQNCZJNiz3rHO7lOXlkVOQkzzdsgu6wWgcazdMUaGoUGm`
-
-let iosHeaders = {
-    'User-Agent': 'Twitter-iPhone/6.13.6 iOS/6.1.6 (Apple;iPhone2,1;;;;;1)',
-    'X-Client-UUID': crypto.randomUUID().toUpperCase(),
-    'X-Twitter-API-Version': '5',
-    'X-Twitter-Client': 'Twitter-iPhone',
-    'X-Twitter-Client-DeviceID': crypto.randomUUID().toUpperCase(),
-    'X-Twitter-Client-Limit-Ad-Tracking': '1',
-    'X-Twitter-Client-Version': '6.13.6'
+const baseHeaders = {
+    'Accept': '*/*',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
+    'Cache-Control': 'no-cache',
+    'Cookie': `auth_token=${config.twitter.authToken}; ct0=${config.twitter.csrfToken}`,
+    'Origin': 'https://x.com',
+    'Pragma': 'no-cache',
+    'Referer': 'https://x.com/home',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+    'X-Csrf-Token': config.twitter.csrfToken,
+    'X-Twitter-Active-User': 'yes',
+    'X-Twitter-Auth-Type': 'OAuth2Session',
+    'X-Twitter-Client-Language': 'en'
 }
 
 let auth = {}
+let solver;
 
 async function init() {
-    let res = await fetch('https://api.twitter.com/oauth/access_token', {
+    try {
+        let document = await handleXMigration()
+        solver = new ClientTransaction(document)
+        await solver.initialize()
+    } catch (err) {
+        console.log('twitter: failed to initialize x-client-transaction-id solver')
+        return false;
+    }
+
+    let res = await fetch('https://api.x.com/1.1/account/verify_credentials.json', {
         headers: {
-            'Accept': 'application/json',
-            'Accept-Encoding': 'gzip, deflate',
-            'Accept-Language': 'en',
-            'Authorization': bearerToken,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            ...iosHeaders
-        },
-        method: 'POST',
-        body: `x_auth_login_challenge=true&x_auth_login_verification=true&x_auth_mode=client_auth&x_auth_password=${encodeURIComponent(config.twitter.password)}&x_auth_username=${encodeURIComponent(config.twitter.username)}`
+            ...baseHeaders,
+            'x-client-transaction-id': await solver.generateTransactionId('GET', '/1.1/account/verify_credentials.json')
+        }
     })
 
     let data = await res.text()
@@ -48,11 +58,8 @@ async function init() {
         console.log(`twitter: logged in as @${json.screen_name}`)
 
         return true;
-    } else if (data === 'Login denied due to suspicious activity. Please check your email for further login instructions.') {
-        console.log('twitter: failed to log in (check the account\'s email)')
-        return false;
     } else {
-        console.log('twitter: failed to log in')
+        console.log('twitter: auth is invalid')
         return false;
     }
 }
@@ -64,22 +71,19 @@ async function post(fileName, filePath, mimeType) {
 
         let mediaId;
 
-        if (mimeType.startsWith('image/') && mimeType != 'image/gif') {
+        if (mimeType.startsWith('image/') && mimeType !== 'image/gif') {
             let form = new FormData()
-            form.setBoundary(`com.aTeBiTs.TwEeTiE.${randomString(20)}`)
+            form.setBoundary(generateWebKitBoundary())
             form.append('media', file, {
                 filename: fileName,
                 contentType: mimeType
             })
 
-            let uploadRes = await fetch('https://upload.twitter.com/1.1/media/upload.json', {
+            let uploadRes = await fetch('https://upload.x.com/1.1/media/upload.json', {
                 headers: {
-                    'Accept': '*/*',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Accept-Language': 'en',
-                    'Authorization': oauth('POST', 'https://upload.twitter.com/1.1/media/upload.json'),
+                    ...baseHeaders,
                     ...form.getHeaders(),
-                    ...iosHeaders
+                    'x-client-transaction-id': await solver.generateTransactionId('POST', '/1.1/media/upload.json')
                 },
                 method: 'POST',
                 body: form.getBuffer()
@@ -89,8 +93,8 @@ async function post(fileName, filePath, mimeType) {
             if (!uploadData.media_id_string) throw `upload:${JSON.stringify(uploadData)}`;
 
             mediaId = uploadData.media_id_string
-        } else { //im so sorry for this hellcode
-            let initUrl = new URL('https://upload.twitter.com/1.1/media/upload.json')
+        } else { //im so sorry for this hellcode //18 months later shy: i don't forgive you and i'm not fixing it either
+            let initUrl = new URL('https://upload.x.com/1.1/media/upload.json')
             initUrl.searchParams.append('command', 'INIT')
             initUrl.searchParams.append('media_type', mimeType)
             initUrl.searchParams.append('total_bytes', stat.size)
@@ -102,11 +106,9 @@ async function post(fileName, filePath, mimeType) {
 
             let initRes = await fetch(initUrl.href, {
                 headers: {
-                    'Accept': '*/*',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Accept-Language': 'en',
-                    'Authorization': oauth('POST', initUrl.href),
-                    ...iosHeaders
+                    ...baseHeaders,
+                    ...form.getHeaders(),
+                    'x-client-transaction-id': await solver.generateTransactionId('POST', '/1.1/media/upload.json')
                 },
                 method: 'POST'
             })
@@ -126,25 +128,22 @@ async function post(fileName, filePath, mimeType) {
                 let chunk = chunks[i]
 
                 let form = new FormData()
-                form.setBoundary(`com.aTeBiTs.TwEeTiE.${randomString(20)}`)
+                form.setBoundary(generateWebKitBoundary())
                 form.append('media', chunk, {
                     filename: fileName,
                     contentType: mimeType
                 })
 
-                let appendUrl = new URL('https://upload.twitter.com/1.1/media/upload.json')
+                let appendUrl = new URL('https://upload.x.com/1.1/media/upload.json')
                 appendUrl.searchParams.append('command', 'APPEND')
                 appendUrl.searchParams.append('media_id', mediaId)
                 appendUrl.searchParams.append('segment_index', i)
 
                 let appendRes = await fetch(appendUrl.href, {
                     headers: {
-                        'Accept': '*/*',
-                        'Accept-Encoding': 'gzip, deflate',
-                        'Accept-Language': 'en',
-                        'Authorization': oauth('POST', appendUrl.href),
-                        ...iosHeaders,
-                        ...form.getHeaders()
+                        ...baseHeaders,
+                        ...form.getHeaders(),
+                        'x-client-transaction-id': await solver.generateTransactionId('POST', '/1.1/media/upload.json')
                     },
                     method: 'POST',
                     body: form.getBuffer()
@@ -153,17 +152,15 @@ async function post(fileName, filePath, mimeType) {
                 if (!appendRes.ok) throw `upload-append:${await appendRes.text()}`;
             }
 
-            let finalizeUrl = new URL('https://upload.twitter.com/1.1/media/upload.json')
+            let finalizeUrl = new URL('https://upload.x.com/1.1/media/upload.json')
             finalizeUrl.searchParams.append('command', 'FINALIZE')
             finalizeUrl.searchParams.append('media_id', mediaId)
 
             let finalizeRes = await fetch(finalizeUrl.href, {
                 headers: {
-                    'Accept': '*/*',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Accept-Language': 'en',
-                    'Authorization': oauth('POST', finalizeUrl.href),
-                    ...iosHeaders
+                    ...baseHeaders,
+                    ...form.getHeaders(),
+                    'x-client-transaction-id': await solver.generateTransactionId('POST', '/1.1/media/upload.json')
                 },
                 method: 'POST'
             })
@@ -176,23 +173,21 @@ async function post(fileName, filePath, mimeType) {
                 try {
                     return await new Promise(async (resolve, reject) => {
                         async function check() {
-                            let statusUrl = new URL('https://upload.twitter.com/1.1/media/upload.json')
+                            let statusUrl = new URL('https://upload.x.com/1.1/media/upload.json')
                             statusUrl.searchParams.append('command', 'STATUS')
                             statusUrl.searchParams.append('media_id', mediaId)
 
                             let statusRes = await fetch(statusUrl.href, {
                                 headers: {
-                                    'Accept': '*/*',
-                                    'Accept-Encoding': 'gzip, deflate',
-                                    'Accept-Language': 'en',
-                                    'Authorization': oauth('GET', statusUrl.href),
-                                    ...iosHeaders
+                                    ...baseHeaders,
+                                    ...form.getHeaders(),
+                                    'x-client-transaction-id': await solver.generateTransactionId('GET', '/1.1/media/upload.json')
                                 }
                             })
 
                             let statusData = await statusRes.json()
 
-                            if (!statusData.media_id_string || (statusData.processing_info.state != 'pending' && statusData.processing_info.state != 'in_progress' && statusData.processing_info.state != 'succeeded')) {
+                            if (!statusData.media_id_string || (statusData.processing_info.state !== 'pending' && statusData.processing_info.state !== 'in_progress' && statusData.processing_info.state !== 'succeeded')) {
                                 reject(`upload-status:${JSON.stringify(statusData)}`)
                             } else if (statusData.processing_info.state == 'succeeded') {
                                 resolve()
@@ -211,40 +206,70 @@ async function post(fileName, filePath, mimeType) {
             await waitForUpload()
         }
 
-        let params = {
-            cards_platform: 'iPhone-10',
-            contributor_details: '1',
-            include_cards: '1',
-            include_entities: '1',
-            include_media_features: '1',
-            include_my_retweet: '1',
-            include_user_entities: 'true',
-            media_ids: mediaId,
-            status: fileName
-        }
-
-        let body = ''
-        for (let [ key, value ] of Object.entries(params)) {
-            body += `${rfc3986encode(key)}=${rfc3986encode(value)}&`
-        }
-
-        body = body.slice(0, -1)
-
-        let postRes = await fetch('https://api.twitter.com/1.1/statuses/update.json', {
+        let postRes = await fetch('https://x.com/i/api/graphql/zkcFc6F-RKRgWN8HUkJfZg/CreateTweet', {
             headers: {
-                'Accept': '*/*',
-                'Accept-Encoding': 'gzip, deflate',
-                'Accept-Language': 'en',
-                'Authorization': oauth('POST', 'https://api.twitter.com/1.1/statuses/update.json', params),
-                'Content-Type': 'application/x-www-form-urlencoded',
-                ...iosHeaders
+                ...baseHeaders,
+                'Content-Type': 'application/json',
+                'x-client-transaction-id': await solver.generateTransactionId('POST', '/i/api/graphql/zkcFc6F-RKRgWN8HUkJfZg/CreateTweet')
             },
             method: 'POST',
-            body
+            body: JSON.stringify({
+                queryId: 'zkcFc6F-RKRgWN8HUkJfZg',
+                variables: {
+                    tweet_text: fileName,
+                    media: {
+                        media_entities: [
+                            {
+                                media_id: mediaId,
+                                tagged_users: []
+                            }
+                        ],
+                        possibly_sensitive: false
+                    },
+                    semantic_annotation_ids: []
+                },
+                features: {
+                    premium_content_api_read_enabled: false,
+                    communities_web_enable_tweet_community_results_fetch: true,
+                    c9s_tweet_anatomy_moderator_badge_enabled: true,
+                    responsive_web_grok_analyze_button_fetch_trends_enabled: false,
+                    responsive_web_grok_analyze_post_followups_enabled: true,
+                    responsive_web_jetfuel_frame: true,
+                    responsive_web_grok_share_attachment_enabled: true,
+                    responsive_web_grok_annotations_enabled: true,
+                    responsive_web_edit_tweet_api_enabled: true,
+                    graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
+                    view_counts_everywhere_api_enabled: true,
+                    longform_notetweets_consumption_enabled: true,
+                    responsive_web_twitter_article_tweet_consumption_enabled: true,
+                    tweet_awards_web_tipping_enabled: false,
+                    content_disclosure_indicator_enabled: true,
+                    content_disclosure_ai_generated_indicator_enabled: true,
+                    responsive_web_grok_show_grok_translated_post: false,
+                    responsive_web_grok_analysis_button_from_backend: true,
+                    post_ctas_fetch_enabled: true,
+                    longform_notetweets_rich_text_read_enabled: true,
+                    longform_notetweets_inline_media_enabled: false,
+                    profile_label_improvements_pcf_label_in_post_enabled: true,
+                    responsive_web_profile_redirect_enabled: false,
+                    rweb_tipjar_consumption_enabled: false,
+                    verified_phone_label_enabled: false,
+                    articles_preview_enabled: true,
+                    responsive_web_grok_community_note_auto_translation_is_enabled: false,
+                    responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
+                    freedom_of_speech_not_reach_fetch_enabled: true,
+                    standardized_nudges_misinfo: true,
+                    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+                    responsive_web_grok_image_annotation_enabled: true,
+                    responsive_web_grok_imagine_annotation_enabled: true,
+                    responsive_web_graphql_timeline_navigation_enabled: true,
+                    responsive_web_enhance_cards_enabled: false
+                }
+            })
         })
 
         let postData = await postRes.json()
-        if (!postData.id_str) throw `post:${JSON.stringify(postData)}`
+        if (!postData?.data?.create_tweet?.tweet_results?.result?.rest_id) throw `post:${JSON.stringify(postData)}`
 
         return true;
     } catch (err) {
@@ -254,52 +279,17 @@ async function post(fileName, filePath, mimeType) {
     }
 }
 
-function oauth(method = 'GET', url, bodyParams = {}) {
-    let urlObj = new URL(url)
+function generateWebKitBoundary() {
+    let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let bytes = crypto.randomBytes(16)
 
-    let timestamp = Math.floor(Date.now() / 1000)
-    let nonce = crypto.randomUUID().toUpperCase()
+    let out = '----WebKitFormBoundary'
 
-    let params = {}
-    for (let [ key, value ] of urlObj.searchParams.entries()) {
-        params[key] = value;
+    for (let i = 0; i < 16; i++) {
+        out += chars[bytes[i] % chars.length]
     }
 
-    for (let [ key, value ] of Object.entries(bodyParams)) {
-        params[key] = value;
-    }
-
-    params['oauth_timestamp'] = timestamp;
-    params['oauth_version'] = '1.0'
-    params['oauth_consumer_key'] = consumerKey;
-    params['oauth_token'] = auth.oauth_token;
-    params['oauth_nonce'] = nonce;
-    params['oauth_signature_method'] = 'HMAC-SHA1'
-
-    let signature = oauthSign.hmacsign(method, `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`, params, consumerSecret, auth.oauth_token_secret)
-    let authorization = `OAuth oauth_timestamp="${timestamp}", oauth_version="1.0", oauth_consumer_key="${consumerKey}", oauth_signature="${encodeURIComponent(signature)}", oauth_token="${auth.oauth_token}", oauth_nonce="${nonce}", oauth_signature_method="HMAC-SHA1"`
-
-    return authorization;
-}
-
-function randomString(length) {
-    let characters = 'abcdefghijklmnopqrstuvwxyz0123456789'
-    let result = ''
-
-    for (let i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * characters.length))
-    }
-
-    return result;
-}
-
-function rfc3986encode(str) {
-    return encodeURIComponent(str)
-    .replaceAll('!', '%21')
-    .replaceAll('*', '%2A')
-    .replaceAll('(', '%28')
-    .replaceAll(')', '%29')
-    .replaceAll('\'', '%27');
+    return out;
 }
 
 module.exports.init = init;

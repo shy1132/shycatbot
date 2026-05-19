@@ -10,6 +10,8 @@ if (!config.instagram.use) return;
 if (config.instagram.use && !config.instagram.password) return console.log('missing instagram password');
 if (config.instagram.use && !config.instagram.email) return console.log('missing instagram email');
 
+const scrapingUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0'
+
 let data = {
     appId: '936619743392459',
     csrfToken: '',
@@ -29,7 +31,7 @@ async function init() {
             'Sec-Fetch-Mode': 'navigate',
             'Sec-Fetch-Site': 'cross-site',
             'Upgrade-Insecure-Requests': '1',
-            'User-Agent': config.scrapingUserAgent
+            'User-Agent': scrapingUserAgent
         }
     })).text()
 
@@ -66,7 +68,7 @@ async function init() {
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
-            'User-Agent': config.scrapingUserAgent,
+            'User-Agent': scrapingUserAgent,
             'Viewport-Width': '1920',
             'X-Asbd-Id': '129477',
             'X-Csrftoken': data.csrfToken,
@@ -116,7 +118,7 @@ async function post(fileName, filePath, mimeType) {
                 'Sec-Fetch-Dest': 'empty',
                 'Sec-Fetch-Mode': 'cors',
                 'Sec-Fetch-Site': 'same-origin',
-                'User-Agent': config.scrapingUserAgent,
+                'User-Agent': scrapingUserAgent,
                 'Viewport-Width': '1920',
                 'X-Entity-Length': file.length,
                 'X-Entity-Name': entityName,
@@ -149,7 +151,7 @@ async function post(fileName, filePath, mimeType) {
                 'Sec-Fetch-Mode': 'navigate',
                 'Sec-Fetch-Site': 'cross-site',
                 'Upgrade-Insecure-Requests': '1',
-                'User-Agent': config.scrapingUserAgent
+                'User-Agent': scrapingUserAgent
             }
         })).text()
     
@@ -188,7 +190,7 @@ async function post(fileName, filePath, mimeType) {
                 'Sec-Fetch-Dest': 'empty',
                 'Sec-Fetch-Mode': 'cors',
                 'Sec-Fetch-Site': 'same-origin',
-                'User-Agent': config.scrapingUserAgent,
+                'User-Agent': scrapingUserAgent,
                 'Viewport-Width': '1920',
                 'X-Asbd-Id': '129477',
                 'X-Csrftoken': data.csrfToken,

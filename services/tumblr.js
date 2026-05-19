@@ -125,7 +125,7 @@ async function post(fileName, filePath, mimeType) {
             body: form.getBuffer()
         })).json()
 
-        if (!data.meta || data.meta.status != 201) throw `post:${JSON.stringify(data)}`;
+        if (!data.meta || data.meta.status !== 201) throw `post:${JSON.stringify(data)}`;
 
         return true;
     } catch (err) {

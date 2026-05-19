@@ -10,6 +10,8 @@ if (!config.threads.use) return;
 if (config.threads.use && !config.threads.password) return console.log('missing threads password');
 if (config.threads.use && !config.threads.email) return console.log('missing threads email');
 
+const scrapingUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0'
+
 let data = {
     appId: '238260118697367',
     csrfToken: '',
@@ -29,7 +31,7 @@ async function init() {
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-User': '?1',
             'Upgrade-Insecure-Requests': '1',
-            'User-Agent': config.scrapingUserAgent,
+            'User-Agent': scrapingUserAgent,
             'X-Requested-With': 'XMLHttpRequest'
         }
     })).json()
@@ -50,7 +52,7 @@ async function init() {
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
-            'User-Agent': config.scrapingUserAgent,
+            'User-Agent': scrapingUserAgent,
             'Viewport-Width': '1901',
             'X-Asbd-Id': '129477',
             'X-Csrftoken': data.csrfToken,
@@ -91,7 +93,7 @@ async function refreshCsrf() {
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-User': '?1',
             'Upgrade-Insecure-Requests': '1',
-            'User-Agent': config.scrapingUserAgent,
+            'User-Agent': scrapingUserAgent,
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
@@ -140,7 +142,7 @@ async function post(fileName, filePath, mimeType) {
                 'Sec-Fetch-Dest': 'empty',
                 'Sec-Fetch-Mode': 'cors',
                 'Sec-Fetch-Site': 'same-origin',
-                'User-Agent': config.scrapingUserAgent,
+                'User-Agent': scrapingUserAgent,
                 'Viewport-Width': '1920',
                 'X-Entity-Length': file.length,
                 'X-Entity-Name': entityName,
@@ -186,7 +188,7 @@ async function post(fileName, filePath, mimeType) {
                 'Sec-Fetch-Dest': 'empty',
                 'Sec-Fetch-Mode': 'cors',
                 'Sec-Fetch-Site': 'same-origin',
-                'User-Agent': config.scrapingUserAgent,
+                'User-Agent': scrapingUserAgent,
                 'Viewport-Width': '1920',
                 'X-Asbd-Id': '129477',
                 'X-Csrftoken': data.csrfToken,

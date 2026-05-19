@@ -1,6 +1,6 @@
 {
   "name": "shycatbot",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "",
   "main": "shycatbot.js",
   "scripts": {
@@ -12,7 +12,7 @@
   "dependencies": {
     "form-data": "^4.0.0",
     "mime-types": "^2.1.35",
-    "oauth-sign": "^0.9.0",
-    "twitter-api-v2": "^1.17.2"
+    "twitter-api-v2": "^1.29.0",
+    "x-client-transaction-id": "^0.2.3"
   }
 }

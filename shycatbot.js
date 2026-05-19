@@ -2,8 +2,10 @@
 //aka the 9,001st automated image tweeter
 
 //requires
-const fs = require('fs').promises
+const fs = require('fs').promises;
 const path = require('path')
+const tls = require('tls')
+const crypto = require('crypto')
 const mime = require('mime-types')
 const config = require('./config.json')
 
@@ -81,7 +83,27 @@ async function initialize() {
         }
     }
 
-    if (usedPlatforms.length < 1) return console.log('u have no platforms enabled or they all failed');
+    if (usedPlatforms.length < 1) return console.log('you have no platforms enabled or they all failed');
+
+    const ORIGINAL_CIPHERS = tls.DEFAULT_CIPHERS;
+    function randomizeCiphers() {
+        do {
+            let cipherList = ORIGINAL_CIPHERS.split(':')
+            let sliced = cipherList.slice(0, 8)
+            let shuffled = sliced;
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                let j = crypto.randomBytes(4).readUint32LE() % shuffled.length; //fun javascript fact: if you remove the semicolon, EVERYTHING BREAKS
+                [ shuffled[i], shuffled[j] ] = [ shuffled[j], shuffled[i] ]
+            }
+
+            let retained = cipherList.slice(8)
+
+            tls.DEFAULT_CIPHERS = [ ...shuffled, ...retained ].join(':')
+        } while (tls.DEFAULT_CIPHERS === ORIGINAL_CIPHERS)
+    }
+
+    randomizeCiphers()
+    setInterval(randomizeCiphers, 1800000)
 
     logSegment()
 
@@ -117,7 +139,7 @@ async function postRandomFile() {
 
             let differentFile = await getRandomFile(platformConfig.mimeTypes, platformConfig.sizeLimit);
             if (file.error && file.error == 'no_files') {
-                console.log(`${platform}: no files match the platform's mimetypes, disabling this platform`);
+                console.log(`${platform}: no files match the platform's mimetypes, disabling this platform`)
                 config[platform].use = false;
                 continue;
             }

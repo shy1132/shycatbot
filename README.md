@@ -24,7 +24,7 @@ it doesn't have to include ALL of the platforms, just the ones that you're using
 ### etc
 for any of the social media keys, set `use` to true to post to that platform
 
-for the `twitter` key, you need to sign up for the twitter api and provide the needed credentials, or set `userAuth` to true and fill in `username` and `password` (may be unreliable and may risk suspension) (you will be automatically emailed every time it logs in, it pretends to request from an old version of the iphone app)
+for the `twitter` key, you need to sign up for the twitter api and provide the needed credentials, or set `userAuth` to true and fill in `authToken` (`auth_token` cookie) and `csrfToken` (`ct0` cookie) (may be unreliable and may risk suspension)
 
 for the `bluesky` key, you need to sign up for a bluesky account, provide the handle, and create an app password in settings and provide that to `appPassword` (`refreshIntervalMs` determines when to refresh the credentials, lower if your `postIntervalMs` is less than it)
 

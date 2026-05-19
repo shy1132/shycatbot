@@ -152,7 +152,7 @@ async function post(fileName, filePath, mimeType) {
                 body: file
             })).json()
 
-            if (!upload.jobId || (upload.state != 'JOB_STATE_CREATED' && upload.state != 'JOB_STATE_COMPLETED')) throw `upload:${JSON.stringify(upload)}`;
+            if (!upload.jobId || (upload.state !== 'JOB_STATE_CREATED' && upload.state !== 'JOB_STATE_COMPLETED')) throw `upload:${JSON.stringify(upload)}`;
 
             let jobId = upload.jobId;
 
