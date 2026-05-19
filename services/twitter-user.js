@@ -29,7 +29,6 @@ const baseHeaders = {
     'X-Twitter-Client-Language': 'en'
 }
 
-let auth = {}
 let solver;
 
 async function init() {
