@@ -2,7 +2,7 @@
 const fs = require('fs').promises;
 const crypto = require('crypto')
 const FormData = require('form-data')
-const { ClientTransaction, handleXMigration } = require('x-client-transaction-id')
+const { ClientTransaction, fetchXDocument } = require('x-client-transaction-id')
 const config = require('../config.json')
 
 //code
@@ -33,7 +33,7 @@ let solver;
 
 async function init() {
     try {
-        let document = await handleXMigration()
+        let document = await fetchXDocument()
         solver = new ClientTransaction(document)
         await solver.initialize()
     } catch (err) {
